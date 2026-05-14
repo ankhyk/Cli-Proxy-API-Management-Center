@@ -71,6 +71,28 @@
   box-sizing: border-box;
 }
 
+.credentialCountBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  min-width: 44px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--success-color, #22c55e);
+  background-color: color-mix(in srgb, var(--success-color, #22c55e) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success-color, #22c55e) 26%, transparent);
+  box-sizing: border-box;
+}
+
+.credentialCountBadgeWarning {
+  color: var(--danger-color);
+  background-color: rgba($error-color, 0.08);
+  border-color: color-mix(in srgb, var(--danger-color) 34%, transparent);
+}
+
 .errorBox {
   padding: $spacing-md;
   background-color: rgba($error-color, 0.1);

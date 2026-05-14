@@ -1311,7 +1311,9 @@
     "description": "Monitor OAuth quota status for Antigravity, Codex, and Gemini CLI credentials.",
     "refresh_files": "Refresh auth files",
     "refresh_files_and_quota": "Refresh files & quota",
+    "refresh_current_page_credentials": "Refresh current page credentials",
     "refresh_all_credentials": "Refresh all credentials",
+    "valid_credentials_count": "Valid credentials {{valid}}/{{total}}",
     "card_idle_hint": "Use the top \"Refresh all credentials\" button to fetch the latest quota data."
   },
   "system_info": {
