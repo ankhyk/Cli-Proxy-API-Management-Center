@@ -1247,7 +1247,9 @@
     "description": "集中查看 OAuth 配額與剩餘情況",
     "refresh_files": "重新整理驗證檔案",
     "refresh_files_and_quota": "重新整理驗證檔案&配額",
+    "refresh_current_page_credentials": "重新整理目前頁面憑證",
     "refresh_all_credentials": "重新整理全部憑證",
+    "valid_credentials_count": "有效憑證 {{valid}}/{{total}}",
     "card_idle_hint": "請使用頂部「重新整理全部憑證」按鈕取得最新配額。"
   },
   "system_info": {

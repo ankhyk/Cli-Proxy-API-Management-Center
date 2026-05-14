@@ -15,12 +15,10 @@ type QuotaUpdater<T> = T | ((prev: T) => T);
 
 type QuotaSetter<T> = (updater: QuotaUpdater<T>) => void;
 
-interface LoadQuotaResult<TData> {
-  name: string;
-  status: 'success' | 'error';
-  data?: TData;
-  error?: string;
-  errorStatus?: number;
+type CredentialValidityStatus = 'valid' | 'invalid';
+
+interface LoadQuotaOptions {
+  onCredentialValidityChange?: (fileName: string, status: CredentialValidityStatus) => void;
 }
 
 export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>) {
@@ -29,6 +27,9 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
   const setQuota = useQuotaStore((state) => state[config.storeSetter]) as QuotaSetter<
     Record<string, TState>
   >;
+  const setCredentialValidityCache = useQuotaStore(
+    (state) => state.setCredentialValidityCache
+  );
 
   const loadingRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -37,7 +38,8 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
     async (
       targets: AuthFileItem[],
       scope: QuotaScope,
-      setLoading: (loading: boolean, scope?: QuotaScope | null) => void
+      setLoading: (loading: boolean, scope?: QuotaScope | null) => void,
+      options?: LoadQuotaOptions
     ) => {
       if (loadingRef.current) return;
       loadingRef.current = true;
@@ -55,35 +57,68 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
           return nextState;
         });
 
-        const results = await Promise.all(
-          targets.map(async (file): Promise<LoadQuotaResult<TData>> => {
+        const allCredentialValidityResults: Record<string, CredentialValidityStatus> = {};
+        const publishCredentialValidity = (fileName: string, status: CredentialValidityStatus) => {
+          if (scope === 'all') {
+            allCredentialValidityResults[fileName] = status;
+            options?.onCredentialValidityChange?.(fileName, status);
+            return;
+          }
+
+          setCredentialValidityCache(config.type, (prev) => {
+            if (prev[fileName] === status) return prev;
+            return {
+              ...prev,
+              [fileName]: status
+            };
+          });
+        };
+
+        await Promise.all(
+          targets.map(async (file) => {
             try {
               const data = await config.fetchQuota(file, t);
-              return { name: file.name, status: 'success', data };
+              if (requestId !== requestIdRef.current) return;
+
+              setQuota((prev) => ({
+                ...prev,
+                [file.name]: config.buildSuccessState(data)
+              }));
+              publishCredentialValidity(file.name, 'valid');
             } catch (err: unknown) {
               const message = err instanceof Error ? err.message : t('common.unknown_error');
               const errorStatus = getStatusFromError(err);
-              return { name: file.name, status: 'error', error: message, errorStatus };
+              if (requestId !== requestIdRef.current) return;
+
+              setQuota((prev) => ({
+                ...prev,
+                [file.name]: config.buildErrorState(message, errorStatus)
+              }));
+              publishCredentialValidity(file.name, 'invalid');
             }
           })
         );
 
-        if (requestId !== requestIdRef.current) return;
+        if (scope === 'all' && requestId === requestIdRef.current) {
+          setCredentialValidityCache(config.type, (prev) => {
+            const nextState: Record<string, CredentialValidityStatus> = {};
 
-        setQuota((prev) => {
-          const nextState = { ...prev };
-          results.forEach((result) => {
-            if (result.status === 'success') {
-              nextState[result.name] = config.buildSuccessState(result.data as TData);
-            } else {
-              nextState[result.name] = config.buildErrorState(
-                result.error || t('common.unknown_error'),
-                result.errorStatus
-              );
-            }
+            targets.forEach((file) => {
+              const nextStatus = allCredentialValidityResults[file.name] ?? prev[file.name];
+              if (nextStatus) {
+                nextState[file.name] = nextStatus;
+              }
+            });
+
+            const prevKeys = Object.keys(prev);
+            const nextKeys = Object.keys(nextState);
+            const changed =
+              prevKeys.length !== nextKeys.length ||
+              nextKeys.some((fileName) => prev[fileName] !== nextState[fileName]);
+
+            return changed ? nextState : prev;
           });
-          return nextState;
-        });
+        }
       } finally {
         if (requestId === requestIdRef.current) {
           setLoading(false);
@@ -91,7 +126,7 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
         }
       }
     },
-    [config, setQuota, t]
+    [config, setCredentialValidityCache, setQuota, t]
   );
 
   return { quota, loadQuota };

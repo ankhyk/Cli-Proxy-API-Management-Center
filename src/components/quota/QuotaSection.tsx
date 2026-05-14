@@ -24,9 +24,18 @@ type QuotaUpdater<T> = T | ((prev: T) => T);
 type QuotaSetter<T> = (updater: QuotaUpdater<T>) => void;
 
 type ViewMode = 'paged' | 'all';
+type QuotaRefreshScope = 'page' | 'all';
+type CredentialValidityStatus = 'valid' | 'invalid';
+
+interface CredentialRefreshProgress {
+  valid: number;
+  invalid: number;
+  statuses: Record<string, CredentialValidityStatus>;
+}
 
 const MAX_ITEMS_PER_PAGE = 25;
 const MAX_SHOW_ALL_THRESHOLD = 30;
+const EMPTY_CREDENTIAL_VALIDITY_CACHE: Record<string, CredentialValidityStatus> = {};
 
 interface QuotaPaginationState<T> {
   pageSize: number;
@@ -37,15 +46,15 @@ interface QuotaPaginationState<T> {
   goToPrev: () => void;
   goToNext: () => void;
   loading: boolean;
-  loadingScope: 'page' | 'all' | null;
-  setLoading: (loading: boolean, scope?: 'page' | 'all' | null) => void;
+  loadingScope: QuotaRefreshScope | null;
+  setLoading: (loading: boolean, scope?: QuotaRefreshScope | null) => void;
 }
 
 const useQuotaPagination = <T,>(items: T[], defaultPageSize = 6): QuotaPaginationState<T> => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSizeState] = useState(defaultPageSize);
   const [loading, setLoadingState] = useState(false);
-  const [loadingScope, setLoadingScope] = useState<'page' | 'all' | null>(null);
+  const [loadingScope, setLoadingScope] = useState<QuotaRefreshScope | null>(null);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(items.length / pageSize)),
@@ -72,7 +81,7 @@ const useQuotaPagination = <T,>(items: T[], defaultPageSize = 6): QuotaPaginatio
     setPage((prev) => Math.min(totalPages, prev + 1));
   }, [totalPages]);
 
-  const setLoading = useCallback((isLoading: boolean, scope?: 'page' | 'all' | null) => {
+  const setLoading = useCallback((isLoading: boolean, scope?: QuotaRefreshScope | null) => {
     setLoadingState(isLoading);
     setLoadingScope(isLoading ? (scope ?? null) : null);
   }, []);
@@ -132,6 +141,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     goToPrev,
     goToNext,
     loading: sectionLoading,
+    loadingScope,
     setLoading
   } = useQuotaPagination(filteredFiles);
 
@@ -162,12 +172,116 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   }, [effectiveViewMode, columns, filteredFiles.length, setPageSize]);
 
   const { quota, loadQuota } = useQuotaLoader(config);
+  const credentialValidityCache = useQuotaStore(
+    (state) => state.credentialValidityCache[config.type] ?? EMPTY_CREDENTIAL_VALIDITY_CACHE
+  );
+  const setCredentialValidityCache = useQuotaStore(
+    (state) => state.setCredentialValidityCache
+  );
+  const [pendingQuotaRefreshScope, setPendingQuotaRefreshScope] =
+    useState<QuotaRefreshScope | null>(null);
+  const [allCredentialRefreshProgress, setAllCredentialRefreshProgress] =
+    useState<CredentialRefreshProgress | null>(null);
 
-  const pendingQuotaRefreshRef = useRef(false);
+  const updateAllCredentialRefreshProgress = useCallback(
+    (fileName: string, status: CredentialValidityStatus) => {
+      setAllCredentialRefreshProgress((prev) => {
+        if (!prev) return prev;
+
+        const previousStatus = prev.statuses[fileName];
+        if (previousStatus === status) return prev;
+
+        return {
+          valid:
+            prev.valid + (status === 'valid' ? 1 : 0) - (previousStatus === 'valid' ? 1 : 0),
+          invalid:
+            prev.invalid + (status === 'invalid' ? 1 : 0) - (previousStatus === 'invalid' ? 1 : 0),
+          statuses: {
+            ...prev.statuses,
+            [fileName]: status
+          }
+        };
+      });
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (loading) return;
+    if (pendingQuotaRefreshScope === 'all') return;
+    if (sectionLoading && loadingScope === 'all') return;
+
+    setCredentialValidityCache(config.type, (prev) => {
+      const nextState: Record<string, CredentialValidityStatus> = {};
+
+      filteredFiles.forEach((file) => {
+        const quotaStatus = quota[file.name]?.status;
+        const cachedStatus = prev[file.name];
+        const nextStatus =
+          quotaStatus === 'success'
+            ? 'valid'
+            : quotaStatus === 'error'
+              ? 'invalid'
+              : cachedStatus;
+
+        if (nextStatus) {
+          nextState[file.name] = nextStatus;
+        }
+      });
+
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(nextState);
+      const changed =
+        prevKeys.length !== nextKeys.length ||
+        nextKeys.some((fileName) => prev[fileName] !== nextState[fileName]);
+
+      return changed ? nextState : prev;
+    });
+  }, [
+    config.type,
+    filteredFiles,
+    loading,
+    loadingScope,
+    pendingQuotaRefreshScope,
+    quota,
+    sectionLoading,
+    setCredentialValidityCache
+  ]);
+
+  const cachedCredentialCounts = useMemo(
+    () =>
+      filteredFiles.reduce(
+        (counts, file) => {
+          const credentialStatus = credentialValidityCache[file.name];
+          if (credentialStatus === 'valid') {
+            counts.validCredentialCount += 1;
+          } else if (credentialStatus === 'invalid') {
+            counts.invalidCredentialCount += 1;
+          }
+          return counts;
+        },
+        { validCredentialCount: 0, invalidCredentialCount: 0 }
+      ),
+    [credentialValidityCache, filteredFiles]
+  );
+
+  const showAllRefreshProgress =
+    allCredentialRefreshProgress !== null &&
+    (pendingQuotaRefreshScope === 'all' || (sectionLoading && loadingScope === 'all'));
+  const validCredentialCount = showAllRefreshProgress
+    ? allCredentialRefreshProgress.valid
+    : cachedCredentialCounts.validCredentialCount;
+  const invalidCredentialCount = showAllRefreshProgress
+    ? allCredentialRefreshProgress.invalid
+    : cachedCredentialCounts.invalidCredentialCount;
+
   const prevFilesLoadingRef = useRef(loading);
 
-  const handleRefresh = useCallback(() => {
-    pendingQuotaRefreshRef.current = true;
+  const handleRefresh = useCallback((scope: QuotaRefreshScope) => {
+    if (scope === 'all') {
+      setAllCredentialRefreshProgress({ valid: 0, invalid: 0, statuses: {} });
+    }
+    setPendingQuotaRefreshScope(scope);
     void triggerHeaderRefresh();
   }, []);
 
@@ -175,16 +289,27 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     const wasLoading = prevFilesLoadingRef.current;
     prevFilesLoadingRef.current = loading;
 
-    if (!pendingQuotaRefreshRef.current) return;
+    const pendingScope = pendingQuotaRefreshScope;
+    if (!pendingScope) return;
     if (loading) return;
     if (!wasLoading) return;
 
-    pendingQuotaRefreshRef.current = false;
-    const scope = effectiveViewMode === 'all' ? 'all' : 'page';
-    const targets = effectiveViewMode === 'all' ? filteredFiles : pageItems;
+    queueMicrotask(() => setPendingQuotaRefreshScope(null));
+    const targets = pendingScope === 'all' ? filteredFiles : pageItems;
     if (targets.length === 0) return;
-    loadQuota(targets, scope, setLoading);
-  }, [loading, effectiveViewMode, filteredFiles, pageItems, loadQuota, setLoading]);
+    loadQuota(targets, pendingScope, setLoading, {
+      onCredentialValidityChange:
+        pendingScope === 'all' ? updateAllCredentialRefreshProgress : undefined
+    });
+  }, [
+    loading,
+    pendingQuotaRefreshScope,
+    filteredFiles,
+    pageItems,
+    loadQuota,
+    setLoading,
+    updateAllCredentialRefreshProgress
+  ]);
 
   useEffect(() => {
     if (loading) return;
@@ -245,10 +370,33 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
           {filteredFiles.length}
         </span>
       )}
+      {filteredFiles.length > 0 && (
+        <span
+          className={`${styles.credentialCountBadge} ${
+            invalidCredentialCount > 0 ? styles.credentialCountBadgeWarning : ''
+          }`}
+          title={t('quota_management.valid_credentials_count', {
+            valid: validCredentialCount,
+            total: filteredFiles.length
+          })}
+          aria-label={t('quota_management.valid_credentials_count', {
+            valid: validCredentialCount,
+            total: filteredFiles.length
+          })}
+        >
+          {validCredentialCount}/{filteredFiles.length}
+        </span>
+      )}
     </div>
   );
 
   const isRefreshing = sectionLoading || loading;
+  const isRefreshingCurrentPage =
+    (loading && pendingQuotaRefreshScope === 'page') ||
+    (sectionLoading && loadingScope === 'page');
+  const isRefreshingAllCredentials =
+    (loading && pendingQuotaRefreshScope === 'all') ||
+    (sectionLoading && loadingScope === 'all');
 
   return (
     <Card
@@ -287,13 +435,26 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
             variant="secondary"
             size="sm"
             className={styles.refreshAllButton}
-            onClick={handleRefresh}
-            disabled={disabled || isRefreshing}
-            loading={isRefreshing}
+            onClick={() => handleRefresh('page')}
+            disabled={disabled || isRefreshing || pageItems.length === 0}
+            loading={isRefreshingCurrentPage}
+            title={t('quota_management.refresh_current_page_credentials')}
+            aria-label={t('quota_management.refresh_current_page_credentials')}
+          >
+            {!isRefreshingCurrentPage && <IconRefreshCw size={16} />}
+            {t('quota_management.refresh_current_page_credentials')}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            className={styles.refreshAllButton}
+            onClick={() => handleRefresh('all')}
+            disabled={disabled || isRefreshing || filteredFiles.length === 0}
+            loading={isRefreshingAllCredentials}
             title={t('quota_management.refresh_all_credentials')}
             aria-label={t('quota_management.refresh_all_credentials')}
           >
-            {!isRefreshing && <IconRefreshCw size={16} />}
+            {!isRefreshingAllCredentials && <IconRefreshCw size={16} />}
             {t('quota_management.refresh_all_credentials')}
           </Button>
         </div>

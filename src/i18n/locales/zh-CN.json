@@ -1221,7 +1221,9 @@
     "description": "集中查看 OAuth 额度与剩余情况",
     "refresh_files": "刷新认证文件",
     "refresh_files_and_quota": "刷新认证文件&额度",
+    "refresh_current_page_credentials": "刷新当前页凭证",
     "refresh_all_credentials": "刷新全部凭证",
+    "valid_credentials_count": "有效凭证 {{valid}}/{{total}}",
     "card_idle_hint": "请使用顶部“刷新全部凭证”按钮获取最新额度。"
   },
   "system_info": {
