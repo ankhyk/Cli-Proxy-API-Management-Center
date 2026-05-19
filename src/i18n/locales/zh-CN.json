@@ -1223,7 +1223,10 @@
     "refresh_files_and_quota": "刷新认证文件&额度",
     "refresh_current_page_credentials": "刷新当前页凭证",
     "refresh_all_credentials": "刷新全部凭证",
-    "valid_credentials_count": "有效凭证 {{valid}}/{{total}}",
+    "valid_credentials_count": "已校验 {{checked}}/{{total}}，有效 {{valid}}，无效 {{invalid}}",
+    "checked_credentials_label": "已校验",
+    "valid_credentials_label": "有效",
+    "invalid_credentials_label": "无效",
     "total_weekly_limit": "总周限额",
     "card_idle_hint": "请使用顶部“刷新全部凭证”按钮获取最新额度。"
   },

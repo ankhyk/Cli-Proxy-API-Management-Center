@@ -1223,7 +1223,10 @@
     "refresh_files_and_quota": "Refresh files & quota",
     "refresh_current_page_credentials": "Refresh current page credentials",
     "refresh_all_credentials": "Refresh all credentials",
-    "valid_credentials_count": "Valid credentials {{valid}}/{{total}}",
+    "valid_credentials_count": "Checked {{checked}}/{{total}}, valid {{valid}}, invalid {{invalid}}",
+    "checked_credentials_label": "Checked",
+    "valid_credentials_label": "Valid",
+    "invalid_credentials_label": "Invalid",
     "total_weekly_limit": "Total weekly limit",
     "card_idle_hint": "Use the top \"Refresh all credentials\" button to fetch the latest quota data."
   },

@@ -293,6 +293,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   const invalidCredentialCount = showAllRefreshProgress
     ? allCredentialRefreshProgress.invalid
     : cachedCredentialCounts.invalidCredentialCount;
+  const checkedCredentialCount = validCredentialCount + invalidCredentialCount;
   const weeklyQuotaSummary = useMemo<WeeklyQuotaSummary | null>(() => {
     const getWeeklyLimitItems = config.getWeeklyLimitItems;
     if (!getWeeklyLimitItems) return null;
@@ -443,15 +444,44 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
             invalidCredentialCount > 0 ? styles.credentialCountBadgeWarning : ''
           }`}
           title={t('quota_management.valid_credentials_count', {
+            checked: checkedCredentialCount,
             valid: validCredentialCount,
+            invalid: invalidCredentialCount,
             total: filteredFiles.length
           })}
           aria-label={t('quota_management.valid_credentials_count', {
+            checked: checkedCredentialCount,
             valid: validCredentialCount,
+            invalid: invalidCredentialCount,
             total: filteredFiles.length
           })}
         >
-          {validCredentialCount}/{filteredFiles.length}
+          <span className={styles.credentialCountItem}>
+            <span className={styles.credentialCountLabel}>
+              {t('quota_management.checked_credentials_label')}
+            </span>
+            <span className={styles.credentialCountValue}>
+              {checkedCredentialCount}/{filteredFiles.length}
+            </span>
+          </span>
+          <span className={styles.credentialCountItem}>
+            <span className={styles.credentialCountLabel}>
+              {t('quota_management.valid_credentials_label')}
+            </span>
+            <span className={`${styles.credentialCountValue} ${styles.credentialCountValueValid}`}>
+              {validCredentialCount}
+            </span>
+          </span>
+          <span className={styles.credentialCountItem}>
+            <span className={styles.credentialCountLabel}>
+              {t('quota_management.invalid_credentials_label')}
+            </span>
+            <span
+              className={`${styles.credentialCountValue} ${styles.credentialCountValueInvalid}`}
+            >
+              {invalidCredentialCount}
+            </span>
+          </span>
         </span>
       )}
       {weeklyQuotaSummary && (

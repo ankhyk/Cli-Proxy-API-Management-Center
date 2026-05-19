@@ -1220,7 +1220,10 @@
     "refresh_files_and_quota": "Обновить файлы и квоты",
     "refresh_current_page_credentials": "Обновить учётные данные текущей страницы",
     "refresh_all_credentials": "Обновить все учётные данные",
-    "valid_credentials_count": "Действительных учётных данных {{valid}}/{{total}}",
+    "valid_credentials_count": "Проверено {{checked}}/{{total}}, действительных {{valid}}, недействительных {{invalid}}",
+    "checked_credentials_label": "Проверено",
+    "valid_credentials_label": "Действ.",
+    "invalid_credentials_label": "Недейств.",
     "total_weekly_limit": "Общий недельный лимит",
     "card_idle_hint": "Используйте кнопку «Обновить все учётные данные» сверху, чтобы загрузить актуальные данные по квотам."
   },
