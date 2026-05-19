@@ -1311,6 +1311,7 @@
     "refresh_current_page_credentials": "Обновить учётные данные текущей страницы",
     "refresh_all_credentials": "Обновить все учётные данные",
     "valid_credentials_count": "Действительных учётных данных {{valid}}/{{total}}",
+    "total_weekly_limit": "Общий недельный лимит",
     "card_idle_hint": "Используйте кнопку «Обновить все учётные данные» сверху, чтобы загрузить актуальные данные по квотам."
   },
   "system_info": {

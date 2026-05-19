@@ -1314,6 +1314,7 @@
     "refresh_current_page_credentials": "Refresh current page credentials",
     "refresh_all_credentials": "Refresh all credentials",
     "valid_credentials_count": "Valid credentials {{valid}}/{{total}}",
+    "total_weekly_limit": "Total weekly limit",
     "card_idle_hint": "Use the top \"Refresh all credentials\" button to fetch the latest quota data."
   },
   "system_info": {

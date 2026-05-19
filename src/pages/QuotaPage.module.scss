@@ -52,6 +52,7 @@
 .titleWrapper {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: $spacing-sm;
   line-height: 24px;
 }
@@ -91,6 +92,58 @@
   color: var(--danger-color);
   background-color: rgba($error-color, 0.08);
   border-color: color-mix(in srgb, var(--danger-color) 34%, transparent);
+}
+
+.totalQuotaSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 220px;
+  min-width: 180px;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 76%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+  box-sizing: border-box;
+  line-height: 1;
+
+  .quotaBar {
+    height: 6px;
+  }
+
+  @include mobile {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.totalQuotaHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.totalQuotaLabel {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.totalQuotaMeta {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .errorBox {

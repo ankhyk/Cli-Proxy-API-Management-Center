@@ -91,8 +91,8 @@ type QuotaUpdater<T> = T | ((prev: T) => T);
 type QuotaType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kimi' | 'xai';
 
 const DEFAULT_ANTIGRAVITY_PROJECT_ID = 'bamboo-precept-lgxtn';
-const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
-const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
+export const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
+export const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
 const geminiCliSupplementaryRequestIds = new Map<string, number>();
 const geminiCliSupplementaryCache = new Map<
   string,
@@ -120,6 +120,12 @@ export interface QuotaStore {
   clearQuotaCache: () => void;
 }
 
+export interface WeeklyQuotaLimitItem {
+  remainingPercent: number | null;
+  used?: number | null;
+  limit?: number | null;
+}
+
 export interface QuotaConfig<TState, TData> {
   type: QuotaType;
   i18nPrefix: string;
@@ -135,8 +141,40 @@ export interface QuotaConfig<TState, TData> {
   controlsClassName: string;
   controlClassName: string;
   gridClassName: string;
+  getWeeklyLimitItems?: (quota: TState) => WeeklyQuotaLimitItem[];
   renderQuotaItems: (quota: TState, t: TFunction, helpers: QuotaRenderHelpers) => ReactNode;
 }
+
+const remainingPercentFromUsedPercent = (usedPercent: number | null): number | null => {
+  if (usedPercent === null) return null;
+  const clampedUsed = Math.max(0, Math.min(100, usedPercent));
+  return Math.max(0, Math.min(100, 100 - clampedUsed));
+};
+
+const getWindowWeeklyLimitItems = (
+  windows: Array<{ id: string; usedPercent: number | null }> | undefined,
+  targetId: string
+): WeeklyQuotaLimitItem[] => {
+  const window = windows?.find((item) => item.id === targetId);
+  if (!window) return [];
+  return [{ remainingPercent: remainingPercentFromUsedPercent(window.usedPercent) }];
+};
+
+const getKimiWeeklyLimitItems = (rows: KimiQuotaRow[] | undefined): WeeklyQuotaLimitItem[] => {
+  const row = rows?.find((item) => item.id === 'summary');
+  if (!row) return [];
+
+  const limit = Number.isFinite(row.limit) ? row.limit : 0;
+  const used = Number.isFinite(row.used) ? row.used : 0;
+  const remainingPercent =
+    limit > 0
+      ? Math.max(0, Math.min(100, Math.round(((limit - used) / limit) * 100)))
+      : used > 0
+        ? 0
+        : null;
+
+  return [{ remainingPercent, used, limit }];
+};
 
 const resolveAntigravityProjectId = async (file: AuthFileItem): Promise<string> => {
   try {
@@ -1171,6 +1209,7 @@ export const CLAUDE_CONFIG: QuotaConfig<
   controlsClassName: styles.claudeControls,
   controlClassName: styles.claudeControl,
   gridClassName: styles.claudeGrid,
+  getWeeklyLimitItems: (quota) => getWindowWeeklyLimitItems(quota.windows, 'seven-day'),
   renderQuotaItems: renderClaudeItems,
 };
 
@@ -1224,6 +1263,7 @@ export const CODEX_CONFIG: QuotaConfig<
   controlsClassName: styles.codexControls,
   controlClassName: styles.codexControl,
   gridClassName: styles.codexGrid,
+  getWeeklyLimitItems: (quota) => getWindowWeeklyLimitItems(quota.windows, 'weekly'),
   renderQuotaItems: renderCodexItems,
 };
 
@@ -1523,6 +1563,7 @@ export const KIMI_CONFIG: QuotaConfig<KimiQuotaState, KimiQuotaRow[]> = {
   controlsClassName: styles.kimiControls,
   controlClassName: styles.kimiControl,
   gridClassName: styles.kimiGrid,
+  getWeeklyLimitItems: (quota) => getKimiWeeklyLimitItems(quota.rows),
   renderQuotaItems: renderKimiItems,
 };
 
