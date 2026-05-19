@@ -21,6 +21,27 @@ interface LoadQuotaOptions {
   onCredentialValidityChange?: (fileName: string, status: CredentialValidityStatus) => void;
 }
 
+const QUOTA_REFRESH_CONCURRENCY_LIMIT = 4;
+
+const runWithConcurrencyLimit = async <T,>(
+  items: T[],
+  concurrencyLimit: number,
+  task: (item: T) => Promise<void>
+) => {
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(1, concurrencyLimit), items.length);
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex;
+        nextIndex += 1;
+        await task(items[currentIndex]);
+      }
+    })
+  );
+};
+
 export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>) {
   const { t } = useTranslation();
   const quota = useQuotaStore(config.storeSelector);
@@ -74,8 +95,10 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
           });
         };
 
-        await Promise.all(
-          targets.map(async (file) => {
+        await runWithConcurrencyLimit(
+          targets,
+          QUOTA_REFRESH_CONCURRENCY_LIMIT,
+          async (file) => {
             try {
               const data = await config.fetchQuota(file, t);
               if (requestId !== requestIdRef.current) return;
@@ -96,7 +119,7 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
               }));
               publishCredentialValidity(file.name, 'invalid');
             }
-          })
+          }
         );
 
         if (scope === 'all' && requestId === requestIdRef.current) {

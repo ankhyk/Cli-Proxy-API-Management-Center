@@ -76,22 +76,55 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   height: 24px;
-  min-width: 44px;
-  padding: 0 9px;
+  min-width: 0;
+  padding: 0 8px;
   border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--success-color, #22c55e);
-  background-color: color-mix(in srgb, var(--success-color, #22c55e) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--success-color, #22c55e) 26%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background-color: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 78%, transparent);
   box-sizing: border-box;
+  white-space: nowrap;
 }
 
 .credentialCountBadgeWarning {
+  background-color: color-mix(in srgb, var(--danger-color) 6%, var(--bg-secondary));
+  border-color: color-mix(in srgb, var(--danger-color) 28%, transparent);
+}
+
+.credentialCountItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  min-width: 0;
+
+  + .credentialCountItem {
+    padding-left: 8px;
+    border-left: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
+  }
+}
+
+.credentialCountLabel {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.credentialCountValue {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.credentialCountValueValid {
+  color: var(--success-color, #22c55e);
+}
+
+.credentialCountValueInvalid {
   color: var(--danger-color);
-  background-color: rgba($error-color, 0.08);
-  border-color: color-mix(in srgb, var(--danger-color) 34%, transparent);
 }
 
 .totalQuotaSummary {
