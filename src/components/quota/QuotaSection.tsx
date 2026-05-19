@@ -11,10 +11,14 @@ import { triggerHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useNotificationStore, useQuotaStore, useThemeStore } from '@/stores';
 import type { AuthFileItem, ResolvedTheme } from '@/types';
 import { getStatusFromError } from '@/utils/quota';
-import { QuotaCard } from './QuotaCard';
+import { QuotaCard, QuotaProgressBar } from './QuotaCard';
 import type { QuotaStatusState } from './QuotaCard';
 import { useQuotaLoader } from './useQuotaLoader';
-import type { QuotaConfig } from './quotaConfigs';
+import {
+  QUOTA_PROGRESS_HIGH_THRESHOLD,
+  QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+  type QuotaConfig,
+} from './quotaConfigs';
 import { useGridColumns } from './useGridColumns';
 import { IconRefreshCw } from '@/components/ui/icons';
 import styles from '@/pages/QuotaPage.module.scss';
@@ -33,9 +37,24 @@ interface CredentialRefreshProgress {
   statuses: Record<string, CredentialValidityStatus>;
 }
 
+interface WeeklyQuotaSummary {
+  percent: number;
+  percentLabel: string;
+  amountLabel: string | null;
+}
+
 const MAX_ITEMS_PER_PAGE = 25;
 const MAX_SHOW_ALL_THRESHOLD = 30;
 const EMPTY_CREDENTIAL_VALIDITY_CACHE: Record<string, CredentialValidityStatus> = {};
+
+const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+
+const formatQuotaNumber = (value: number): string => {
+  if (!Number.isFinite(value)) return '0';
+  const rounded = Math.round(value);
+  if (Math.abs(value - rounded) < 0.0001) return String(rounded);
+  return value.toFixed(2).replace(/\.?0+$/, '');
+};
 
 interface QuotaPaginationState<T> {
   pageSize: number;
@@ -274,6 +293,54 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   const invalidCredentialCount = showAllRefreshProgress
     ? allCredentialRefreshProgress.invalid
     : cachedCredentialCounts.invalidCredentialCount;
+  const weeklyQuotaSummary = useMemo<WeeklyQuotaSummary | null>(() => {
+    const getWeeklyLimitItems = config.getWeeklyLimitItems;
+    if (!getWeeklyLimitItems) return null;
+
+    let percentTotal = 0;
+    let percentCount = 0;
+    let usedTotal = 0;
+    let limitTotal = 0;
+    let numericCount = 0;
+
+    filteredFiles.forEach((file) => {
+      const current = quota[file.name];
+      if (current?.status !== 'success') return;
+
+      getWeeklyLimitItems(current).forEach((item) => {
+        if (typeof item.remainingPercent === 'number' && Number.isFinite(item.remainingPercent)) {
+          percentTotal += clampPercent(item.remainingPercent);
+          percentCount += 1;
+        }
+
+        if (typeof item.limit === 'number' && Number.isFinite(item.limit) && item.limit > 0) {
+          const used =
+            typeof item.used === 'number' && Number.isFinite(item.used) ? item.used : 0;
+          usedTotal += used;
+          limitTotal += item.limit;
+          numericCount += 1;
+        }
+      });
+    });
+
+    if (numericCount > 0 && limitTotal > 0) {
+      const remaining = clampPercent(Math.round(((limitTotal - usedTotal) / limitTotal) * 100));
+      return {
+        percent: remaining,
+        percentLabel: `${remaining}%`,
+        amountLabel: `${formatQuotaNumber(usedTotal)} / ${formatQuotaNumber(limitTotal)}`,
+      };
+    }
+
+    if (percentCount === 0) return null;
+
+    const percent = clampPercent(Math.round(percentTotal / percentCount));
+    return {
+      percent,
+      percentLabel: `${percent}%`,
+      amountLabel: null,
+    };
+  }, [config, filteredFiles, quota]);
 
   const prevFilesLoadingRef = useRef(loading);
 
@@ -386,6 +453,34 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
         >
           {validCredentialCount}/{filteredFiles.length}
         </span>
+      )}
+      {weeklyQuotaSummary && (
+        <div
+          className={styles.totalQuotaSummary}
+          title={`${t('quota_management.total_weekly_limit')}: ${
+            weeklyQuotaSummary.percentLabel
+          }${weeklyQuotaSummary.amountLabel ? ` ${weeklyQuotaSummary.amountLabel}` : ''}`}
+          aria-label={`${t('quota_management.total_weekly_limit')}: ${
+            weeklyQuotaSummary.percentLabel
+          }${weeklyQuotaSummary.amountLabel ? ` ${weeklyQuotaSummary.amountLabel}` : ''}`}
+        >
+          <div className={styles.totalQuotaHeader}>
+            <span className={styles.totalQuotaLabel}>
+              {t('quota_management.total_weekly_limit')}
+            </span>
+            <div className={styles.totalQuotaMeta}>
+              <span className={styles.quotaPercent}>{weeklyQuotaSummary.percentLabel}</span>
+              {weeklyQuotaSummary.amountLabel && (
+                <span className={styles.quotaAmount}>{weeklyQuotaSummary.amountLabel}</span>
+              )}
+            </div>
+          </div>
+          <QuotaProgressBar
+            percent={weeklyQuotaSummary.percent}
+            highThreshold={QUOTA_PROGRESS_HIGH_THRESHOLD}
+            mediumThreshold={QUOTA_PROGRESS_MEDIUM_THRESHOLD}
+          />
+        </div>
       )}
     </div>
   );

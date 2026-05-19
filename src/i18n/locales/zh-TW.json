@@ -1250,6 +1250,7 @@
     "refresh_current_page_credentials": "重新整理目前頁面憑證",
     "refresh_all_credentials": "重新整理全部憑證",
     "valid_credentials_count": "有效憑證 {{valid}}/{{total}}",
+    "total_weekly_limit": "總週限額",
     "card_idle_hint": "請使用頂部「重新整理全部憑證」按鈕取得最新配額。"
   },
   "system_info": {
