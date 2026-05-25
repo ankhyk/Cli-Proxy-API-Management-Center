@@ -5,6 +5,7 @@
 import { useTranslation } from 'react-i18next';
 import type { ReactElement, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
+import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
 import type { AuthFileItem, ResolvedTheme, ThemeColors } from '@/types';
 import { TYPE_COLORS } from '@/utils/quota';
 import styles from '@/pages/QuotaPage.module.scss';
@@ -26,10 +27,9 @@ export interface QuotaProgressBarProps {
 export function QuotaProgressBar({
   percent,
   highThreshold,
-  mediumThreshold
+  mediumThreshold,
 }: QuotaProgressBarProps) {
-  const clamp = (value: number, min: number, max: number) =>
-    Math.min(max, Math.max(min, value));
+  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
   const normalized = percent === null ? null : clamp(percent, 0, 100);
   const fillClass =
     normalized === null
@@ -66,6 +66,9 @@ interface QuotaCardProps<TState extends QuotaStatusState> {
   defaultType: string;
   canRefresh?: boolean;
   onRefresh?: () => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (name: string, selected: boolean) => void;
   renderQuotaItems: (quota: TState, t: TFunction, helpers: QuotaRenderHelpers) => ReactNode;
 }
 
@@ -79,7 +82,10 @@ export function QuotaCard<TState extends QuotaStatusState>({
   defaultType,
   canRefresh = false,
   onRefresh,
-  renderQuotaItems
+  selectable = false,
+  selected = false,
+  onToggleSelect,
+  renderQuotaItems,
 }: QuotaCardProps<TState>) {
   const { t } = useTranslation();
 
@@ -94,7 +100,9 @@ export function QuotaCard<TState extends QuotaStatusState>({
     quota?.errorStatus,
     quota?.error || t('common.unknown_error')
   );
-  const idleMessageKey = onRefresh ? `${i18nPrefix}.idle` : (cardIdleMessageKey ?? `${i18nPrefix}.idle`);
+  const idleMessageKey = onRefresh
+    ? `${i18nPrefix}.idle`
+    : (cardIdleMessageKey ?? `${i18nPrefix}.idle`);
 
   const getTypeLabel = (type: string): string => {
     const key = `auth_files.filter_${type}`;
@@ -105,14 +113,33 @@ export function QuotaCard<TState extends QuotaStatusState>({
   };
 
   return (
-    <div className={`${styles.fileCard} ${cardClassName}`}>
+    <div
+      className={`${styles.fileCard} ${cardClassName} ${selected ? styles.fileCardSelected : ''}`}
+    >
       <div className={styles.cardHeader}>
+        {selectable && onToggleSelect && (
+          <SelectionCheckbox
+            checked={selected}
+            onChange={(value) => onToggleSelect(item.name, value)}
+            className={styles.quotaCardSelection}
+            ariaLabel={
+              selected
+                ? t('quota_management.clear_selected_credentials')
+                : t('quota_management.select_credential')
+            }
+            title={
+              selected
+                ? t('quota_management.clear_selected_credentials')
+                : t('quota_management.select_credential')
+            }
+          />
+        )}
         <span
           className={styles.typeBadge}
           style={{
             backgroundColor: typeColor.bg,
             color: typeColor.text,
-            ...(typeColor.border ? { border: typeColor.border } : {})
+            ...(typeColor.border ? { border: typeColor.border } : {}),
           }}
         >
           {getTypeLabel(displayType)}
@@ -139,7 +166,7 @@ export function QuotaCard<TState extends QuotaStatusState>({
         ) : quotaStatus === 'error' ? (
           <div className={styles.quotaError}>
             {t(`${i18nPrefix}.load_failed`, {
-              message: quotaErrorMessage
+              message: quotaErrorMessage,
             })}
           </div>
         ) : quota ? (

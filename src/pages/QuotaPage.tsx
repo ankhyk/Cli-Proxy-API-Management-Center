@@ -56,6 +56,12 @@ export function QuotaPage() {
     await Promise.all([loadConfig(), loadFiles()]);
   }, [loadConfig, loadFiles]);
 
+  const handleFilesDeleted = useCallback((names: string[]) => {
+    const deletedNames = new Set(names.map((name) => name.trim()).filter(Boolean));
+    if (deletedNames.size === 0) return;
+    setFiles((prev) => prev.filter((file) => !deletedNames.has(file.name)));
+  }, []);
+
   useHeaderRefresh(handleHeaderRefresh);
 
   useEffect(() => {
@@ -77,36 +83,42 @@ export function QuotaPage() {
         files={files}
         loading={loading}
         disabled={disableControls}
+        onFilesDeleted={handleFilesDeleted}
       />
       <QuotaSection
         config={ANTIGRAVITY_CONFIG}
         files={files}
         loading={loading}
         disabled={disableControls}
+        onFilesDeleted={handleFilesDeleted}
       />
       <QuotaSection
         config={CODEX_CONFIG}
         files={files}
         loading={loading}
         disabled={disableControls}
+        onFilesDeleted={handleFilesDeleted}
       />
       <QuotaSection
         config={XAI_CONFIG}
         files={files}
         loading={loading}
         disabled={disableControls}
+        onFilesDeleted={handleFilesDeleted}
       />
       <QuotaSection
         config={GEMINI_CLI_CONFIG}
         files={files}
         loading={loading}
         disabled={disableControls}
+        onFilesDeleted={handleFilesDeleted}
       />
       <QuotaSection
         config={KIMI_CONFIG}
         files={files}
         loading={loading}
         disabled={disableControls}
+        onFilesDeleted={handleFilesDeleted}
       />
     </div>
   );
